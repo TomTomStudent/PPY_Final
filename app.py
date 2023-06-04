@@ -85,7 +85,7 @@ var_list = ["Open", "High", "Low", "Close", "Volume"]
 time_list = [str(timestamp) for timestamp in timestamps]
 
 var_list_val = tkinter.StringVar(root)
-var_list_val.set("Select value")
+var_list_val.set("Open")
 var_time_list = tkinter.StringVar(root)
 var_time_list.set("Select date")
 

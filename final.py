@@ -1,15 +1,15 @@
+from matplotlib import font_manager
 import pandas as pd
 import numpy as np
 import tkinter as tk
 from matplotlib.figure import Figure
 from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
-import tkinter as tk
 import matplotlib.pyplot as plt
 import mplcursors
-from matplotlib.backends.backend_tkagg import FigureCanvasTkAgg
+import sys
 
 
-class PlayerStats:
+class PlayerStats(object):
     def __init__(self, rk, player, pos, age, team, g, gs, mp, fg, fga, fg_pct, three_p, three_pa, three_pct, two_p, two_pa, two_pct, efg_pct, ft, fta, ft_pct, orb, drb, trb, ast, stl, blk, tov, pf, pts):
         self.rk = rk
         self.player = player
@@ -111,9 +111,44 @@ class GUI:
         self.button_frame = tk.Frame(self.root)
         self.button_frame.pack(side=tk.RIGHT)
 
-        self.create_option_menu()
+        self.name_label()
+        self.create_label()
+        self.predicted_label()
+        self.real_label()
+        self.create_role_menu()
+        self.create_date_menu()
         self.create_confirm_button()
         self.create_create_button()
+
+        self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
+
+    def name_label(self):
+        self.name_var = tk.StringVar()
+        self.name_var.set("Players name")
+        label0 = tk.Label(self.button_frame, textvariable=self.name_var)
+        label0.pack(side=tk.TOP)
+
+    def create_label(self):
+        self.label_var = tk.StringVar()  # Variable to store the label text
+        self.label_var.set("This is where the player will be")
+        label = tk.Label(self.button_frame, textvariable=self.label_var)
+        label.pack(side=tk.TOP)
+
+    def predicted_label(self):
+        self.label_var2 = tk.StringVar()  # Variable to store the label text
+        self.label_var2.set("Predicted player stats")
+        label2 = tk.Label(self.button_frame, textvariable=self.label_var2)
+        label2.pack(side=tk.TOP)
+
+    def real_label(self):
+        self.label_var3 = tk.StringVar()  # Variable to store the label text
+        self.label_var3.set("Real player stats (if exists)")
+        label3 = tk.Label(self.button_frame, textvariable=self.label_var3)
+        label3.pack(side=tk.TOP)
+
+    def on_closing(self):
+        self.root.destroy()
+        sys.exit()
 
     def create_scatter_plot(self):
         x = [float(player.pts)
@@ -126,16 +161,29 @@ class GUI:
         self.fig_frame = tk.Frame(self.root)
         self.fig_frame.pack(side=tk.LEFT)
 
-        fig = create_scatter_plot(x, y, self.data_manager.get_player_stats())
+        fig = create_scatter_plot(
+            x, y, self.data_manager.get_player_stats(), "PTS")
 
         # Create a canvas to display the plot
         canvas = FigureCanvasTkAgg(fig, master=self.fig_frame)
         canvas.draw()
+        canvas.mpl_connect("pick_event", lambda event: self.on_plot_pick(
+            event, canvas))  # Connect pick_event to callback
         canvas.get_tk_widget().pack()
 
+        return canvas  # Return the canvas object
+
+    def on_plot_pick(self, event, canvas):
+        # Get the index of the selected player
+        index = event.ind[0]
+        player = self.data_manager.get_player_stats()[index]
+        # Update the label with the player name
+        self.label_var.set(f"Selected player: {player.player}")
+        # Update the canvas to reflect the label change
+        canvas.draw()
+
     def update_plot(self):
-        selected_index = int(self.header_var.get())
-        selected_header = self.header_names[selected_index]
+        selected_header = self.header_var.get()
 
         x = [float(getattr(player, selected_header.lower()))
              for player in self.data_manager.get_player_stats()]
@@ -147,26 +195,54 @@ class GUI:
         self.fig_frame = tk.Frame(self.root)
         self.fig_frame.pack(side=tk.LEFT)
 
-        fig = create_scatter_plot(x, y, self.data_manager.get_player_stats())
+        fig = create_scatter_plot(
+            x, y, self.data_manager.get_player_stats(), selected_header)
 
         # Create a canvas to display the plot
         canvas = FigureCanvasTkAgg(fig, master=self.fig_frame)
         canvas.draw()
         canvas.get_tk_widget().pack()
 
-    def create_option_menu(self):
-        header_names = [header.lower() for header in PlayerStats.__dict__.keys(
-        ) if not header.startswith("__")]
+    def create_role_menu(self):
+        header_names = [
+            'rk', 'age', 'g', 'gs', 'mp', 'fg', 'fga',
+            'fg_pct', 'three_p', 'three_pa', 'three_pct', 'two_p', 'two_pa', 'two_pct', 'efg_pct',
+            'ft', 'fta', 'ft_pct', 'orb', 'drb', 'trb', 'ast', 'stl', 'blk',
+            'tov', 'pf', 'pts'
+        ]
         self.header_names = header_names
+        self.header_var.set(header_names[0])
+        option_menu = tk.OptionMenu(
+            self.button_frame, self.header_var, *header_names)
+        option_menu.pack(side=tk.TOP)
+
+    def create_date_menu(self):
+        dates = [
+            '22/23', '21/22', '20/21'
+        ]
+        date_files = [
+            'NBA player 2022-2023.csv', 'NBA player 2021-2022.csv', 'NBA player 2020-2021.csv'
+        ]
+        self.dates = dates
+        self.dates_var = tk.StringVar()
+        self.dates_var.set(dates[0])
+
+        def on_date_select(*args):
+            selected_date = self.dates_var.get()
+            index = dates.index(selected_date)
+            selected_file = date_files[index]
+            self.data_manager = DataManager(selected_file)
+            self.data_manager.load_data()
+            self.update_plot()
 
         option_menu = tk.OptionMenu(
-            self.button_frame, self.header_var, *range(len(header_names)))
-        option_menu.pack(side=tk.LEFT)
+            self.button_frame, self.dates_var, *dates, command=on_date_select)
+        option_menu.pack(side=tk.TOP)
 
     def create_confirm_button(self):
         confirm_button = tk.Button(
             self.button_frame, text="Confirm", command=self.update_plot)
-        confirm_button.pack(side=tk.LEFT)
+        confirm_button.pack(side=tk.TOP)
 
     def create_create_button(self):
         def create_player_popup():
@@ -182,46 +258,93 @@ class GUI:
 
         create_button = tk.Button(
             self.button_frame, text="Create", command=create_player_popup)
-        create_button.pack(side=tk.LEFT)
+        create_button.pack(side=tk.TOP)
 
 
-def create_scatter_plot(x, y, data):
+def create_scatter_plot(x, y, data, selected_header):
     fig, ax = plt.subplots()
     scatter = ax.scatter(x, y)
-    plt.xlabel("PTS")
+    plt.xlabel(selected_header.upper())  # Update the x-axis label here
     plt.ylabel("G")
     plt.title("NBA Player Scatter Plot")
 
     # Create a cursor that displays the name on hover
     cursor = mplcursors.cursor(hover=True)
 
+    # Set the font to Arial
+    prop = font_manager.FontProperties(family='Arial')
+
     @cursor.connect("add")
     def on_hover(sel):
         index = sel.target.index
-        name = data[index].player  # Get the player name
-        sel.annotation.set_text(name)
+        player = data[index]
+
+        name = player.player
+        age = player.age
+        g = player.g
+        gs = player.gs
+        mp = player.mp
+        fg = player.fg
+        fga = player.fga
+        fg_pct = player.fg_pct
+        three_p = player.three_p
+        three_pa = player.three_pa
+        three_pct = player.three_pct
+        two_p = player.two_p
+        two_pa = player.two_pa
+        two_pct = player.two_pct
+        efg_pct = player.efg_pct
+        ft = player.ft
+        fta = player.fta
+        ft_pct = player.ft_pct
+        orb = player.orb
+        drb = player.drb
+        trb = player.trb
+        ast = player.ast
+        stl = player.stl
+        blk = player.blk
+        tov = player.tov
+        pf = player.pf
+        pts = player.pts
+
+        sel.annotation.set_text(f"{name}, {age}")
+        sel.annotation.set_fontproperties(prop)
+        gui.name_var.set(f"{name}, {age}")
+        gui.label_var.set(f"PTS: {pts}, G: {g}, GS: {gs}, MP: {mp}, FG: {fg}, FGA: {fga}, FG %: {fg_pct}, 3P: {three_p}\n"
+                          f"3PA: {three_pa}, 3P%: {three_pct}, 2P: {two_p}, 2PA: {two_pa}, 2P%: {two_pct}, eFG%: {efg_pct}\n"
+                          f"FT: {ft}, FTA: {fta}, FT%: {ft_pct}, ORB: {orb}, DRB: {drb}, TRB: {trb}, AST: {ast}\n"
+                          f"STL: {stl}, BLK: {blk}, TOV: {tov}, PF: {pf}")
+
+        allinfo = get_player_info(name)
+        for row in allinfo:
+            # print(x)
+            pts = row["PTS"]
+            g = row["G"]
+            print(f"Points: {pts}, Games: {g}")
+
+    def on_click(event):
+        if event.button == 1:
+            index = event.target.index
+            name = data[index].player
+            gui.label_var.set(f"Selected player: {name}")
+
+    fig.canvas.mpl_connect("button_press_event", on_click)
 
     return fig
 
 
-class NeuralNetwork:
-    def __init__(self):
-        # Implement the initialization logic for the neural network
-        pass
+def get_player_info(player_name):
+    csv_files = ['NBA player 2022-2023.csv',
+                 'NBA player 2021-2022.csv', 'NBA player 2020-2021.csv']
+    player_info = []
 
-    def feedforward(self):
-        # Implement the feedforward calculation logic
-        pass
+    for csv_file in csv_files:
+        data = pd.read_csv(csv_file)
+        matching_rows = data[data['Player'] == player_name]
+        for _, row in matching_rows.iterrows():
+            player_info.append(row)
 
-    def train(self):
-        # Implement the training logic for the neural network
-        pass
-
-    def evaluate(self):
-        # Implement the logic to evaluate the accuracy of the network using the test dataset
-        pass
-
-    # Implement additional methods for neural network operations
+    return player_info
 
 
 if __name__ == "__main__":
@@ -230,5 +353,7 @@ if __name__ == "__main__":
     data_manager.load_data()
 
     gui = GUI(root, data_manager)
+
+    root.protocol("WM_DELETE_WINDOW", gui.on_closing)
 
     root.mainloop()

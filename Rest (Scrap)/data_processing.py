@@ -75,7 +75,7 @@ def update_plot(header_var):
 def main():
     global header_names, data, x, y, fig_frame
 
-    filename = "NBA player 2022-2023.csv"
+    filename = "C:\Users\tomko\OneDrive\Pulpit\PPY\Data\NBA player 2022-2023.csv"
     data = load_data(filename)
     x = [float(row[28]) for row in data]
     y = [float(row[5]) for row in data]

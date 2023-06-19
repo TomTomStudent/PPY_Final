@@ -188,9 +188,9 @@ class GUI:
         query = player_name + ' basketball player'
         image_url = search_images(query)
 
-        if image_url:
-            response = requests.get(image_url)
-            try:
+        try:
+            if image_url:
+                response = requests.get(image_url)
                 response.raise_for_status()  # Check    for any request errors
                 image_data = response.content
                 image = Image.open(io.BytesIO(image_data))
@@ -201,14 +201,15 @@ class GUI:
                 self.image_label.configure(image=photo)
                 self.image_label.image = photo
                 self.name_label.configure(text=player_name)
-            except (requests.RequestException, UnidentifiedImageError) as e:
+            else:
                 self.image_label.configure(image="")
                 self.name_label.configure(
-                    text=f"Error loading image for {player_name}")
-                print(f"An error occurred while loading the image: {e}")
-        else:
+                    text=f"No image found for {player_name}")
+        except (requests.RequestException, UnidentifiedImageError) as e:
             self.image_label.configure(image="")
-            self.name_label.configure(text=f"No image found for {player_name}")
+            self.name_label.configure(
+                text=f"Error loading image for {player_name}")
+            print(f"An error occurred while loading the image: {e}")
 
     # def image(self):
     #     url = "https://picsum.photos/200"
@@ -453,6 +454,23 @@ def create_scatter_plot(x, y, data, selected_header):
         # orb = player.orb
         # drb = player.drb
         # pf = player.pf
+
+        dg = g - zg
+        dpts = pts - zpts
+        dtrb = trb - ztrb
+        dast = ast - zast
+        dstl = stl - zstl
+        dblk = blk - zblk
+        dtov = tov - ztov
+        dfga = fga - zfga
+        dfg = fg - zfg
+        dfta = fta - zfta
+        dft = ft - zft
+        dthree_pa = three_pa - zthree_pa
+        dthree_p = three_p - zthree_p
+        dthree_pct = three_pct - zthree_pct
+        gui.label_var3.set(f"PTS: {dpts:.2f}, G: {dg:.2f}, FG: {dfg:.2f}, FGA: {dfga:.2f}, 3P: {dthree_p:.2f}, 3PA: {dthree_pa:.2f}, 3P%: {dthree_pct:.2f}\n"
+                           f"FT: {dft:.2f}, FTA: {dfta:.2f}, TRB: {dtrb:.2f}, AST: {dast:.2f}, STL: {dstl:.2f}, BLK: {dblk:.2f}, TOV: {dtov:.2f}")
 
         gui.display_player_image(name)
 

@@ -1,1 +1,0 @@
-timestamp = datetime.strptime(row[0], '%Y-%m-%d %H:%M:%S')

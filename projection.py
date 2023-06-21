@@ -1,114 +1,277 @@
-import csv
+from matplotlib.widgets import RadioButtons
+import numpy as np
 import pandas as pd
+import seaborn as sns
+import statsmodels.api as sm
+import matplotlib.pyplot as plt
+from sklearn import preprocessing
+from sklearn.metrics import r2_score
 from sklearn.linear_model import LinearRegression
-
-df = pd.read_csv('NBA player 2020-2021.csv')
-
-per = df.loc[:, ['Player', 'G', 'PTS', 'TRB', 'AST', 'STL',
-                 'BLK', 'TOV', 'FGA', 'FG', 'FTA', 'FT', '3PA', '3P']]
-per.loc[:, 'PER'] = (
-    (per['PTS']
-     + per['TRB']
-     + per['AST']
-     + per['STL']
-     + per['BLK']
-     - (per['FGA'] - per['FG'])
-     - (per['FTA'] - per['FT'])
-     - per['TOV'])
-    / per['G']
-)
-
-per['PER'] = per['PER'].round(2)
-
-per.to_csv('pure_efficiency_stats_20_21.csv', index=False)
-
-df_2 = pd.read_csv('NBA player 2021-2022.csv')
-
-per_2 = df_2.loc[:, ['Player', 'G', 'PTS', 'TRB', 'AST',
-                     'STL', 'BLK', 'TOV', 'FGA', 'FG', 'FTA', 'FT', '3PA', '3P']]
-per_2.loc[:, 'PER'] = (
-    (per_2['PTS']
-     + per_2['TRB']
-     + per_2['AST']
-     + per_2['STL']
-     + per_2['BLK']
-     - (per_2['FGA'] - per_2['FG'])
-     - (per_2['FTA'] - per_2['FT'])
-     - per_2['TOV'])
-    / per_2['G']
-)
-
-per_2['PER'] = per_2['PER'].round(2)
-
-per_2.to_csv('pure_efficiency_stats_21_22.csv', index=False)
-
-df_3 = pd.read_csv('NBA player 2022-2023.csv')
-
-per_3 = df_3.loc[:, ['Player', 'G', 'PTS', 'TRB', 'AST',
-                     'STL', 'BLK', 'TOV', 'FGA', 'FG', 'FTA', 'FT', '3PA', '3P']]
-per_3.loc[:, 'PER'] = (
-    (per_3['PTS']
-     + per_3['TRB']
-     + per_3['AST']
-     + per_3['STL']
-     + per_3['BLK']
-     - (per_3['FGA'] - per_3['FG'])
-     - (per_3['FTA'] - per_3['FT'])
-     - per_3['TOV'])
-    / per_3['G']
-)
-
-per_3['PER'] = per_3['PER'].round(2)
-
-per_3.to_csv('pure_efficiency_stats_22_23.csv', index=False)
-
-train_data_1 = pd.read_csv('pure_efficiency_stats_20_21.csv')
-train_data_2 = pd.read_csv('pure_efficiency_stats_21_22.csv')
-
-train_data = pd.concat([train_data_1, train_data_2], ignore_index=True)
-
-test_data = pd.read_csv('pure_efficiency_stats_22_23.csv')
-
-train_data = train_data.drop('Player', axis=1)
-test_data = test_data.drop('Player', axis=1)
-
-X_train = train_data.drop('PER', axis=1)
-y_train = train_data['PER']
-
-X_test = test_data.drop('PER', axis=1)
-y_test = test_data['PER']
-
-model = LinearRegression()
-model.fit(X_train, y_train)
-
-y_pred = model.predict(X_test)
-
-comparison = pd.DataFrame({'Actual': y_test, 'Predicted': y_pred})
-print(comparison)
-
-comparison.to_csv('final_results.csv', index=False)
+from sklearn.ensemble import RandomForestRegressor
+import matplotlib.pyplot as plt
 
 
-with open('final_results.csv', 'r', encoding='utf-8') as file:
-    reader = csv.reader(file)
-    next(reader)
-    differences = [float(row[1]) - float(row[0]) for row in reader]
+def file_output_per(input_file, output_file):
+    df = pd.read_csv(input_file)
+    grouped_data = df.groupby('Player').sum()
+    sorted_data = grouped_data.sort_values('Player').reset_index()
+    rounded_data = sorted_data.round(2)
 
-modified_differences = [diff + 1.0 for diff in differences]
+    per = rounded_data.loc[:,
+                           ['Player', 'Age', 'G', 'GS', 'MP', 'PTS', 'TRB', 'AST', 'STL',
+                            'BLK', 'TOV', 'FGA', 'FG', 'FTA', 'FT', '3PA', '3P', 'PF']]
 
-with open('pure_efficiency_stats_22_23.csv', 'r', encoding='utf-8') as file:
-    reader = csv.reader(file)
-    header = next(reader)
-    data = list(reader)
+    per['PER'] = ((per['PTS']
+                   + per['TRB']
+                   + per['AST']
+                   + per['STL']
+                   + per['BLK']
+                   - (per['FGA'] - per['FG'])
+                   - (per['FTA'] - per['FT'])
+                   - per['TOV']) / per['G'])
 
-    g_column_index = header.index('G')
+    per['PER'] = per['PER'].round(2)
+    per.to_csv(output_file, index=False)
 
-    for i, row in enumerate(data):
-        for j in range(len(row)):
-            if j != g_column_index and j != 0:
-                row[j] = round(float(row[j]) * modified_differences[i], 2)
 
-with open('updated_per_stats_22_23.csv', 'w', newline='', encoding='utf-8') as file:
-    writer = csv.writer(file)
-    writer.writerow(header)
-    writer.writerows(data)
+file_output_per('NBA player 2020-2021.csv', 'pure_efficiency_stats_20_21.csv')
+file_output_per('NBA player 2021-2022.csv', 'pure_efficiency_stats_21_22.csv')
+file_output_per('NBA player 2022-2023.csv', 'pure_efficiency_stats_22_23.csv')
+
+
+def player_filter(data_set_1_path, data_set_2_path, data_set_3_path):
+    df_1 = pd.read_csv(data_set_1_path)
+    df_2 = pd.read_csv(data_set_2_path)
+    df_3 = pd.read_csv(data_set_3_path)
+
+    common_players = set(df_1['Player']).intersection(
+        df_2['Player']).intersection(df_3['Player'])
+
+    filtered_df_1 = df_1[df_1['Player'].isin(common_players)]
+    filtered_df_2 = df_2[df_2['Player'].isin(common_players)]
+    filtered_df_3 = df_3[df_3['Player'].isin(common_players)]
+
+    return filtered_df_1, filtered_df_2, filtered_df_3
+
+
+filtered_data_1, filtered_data_2, filtered_data_3 = player_filter('pure_efficiency_stats_20_21.csv',
+                                                                  'pure_efficiency_stats_21_22.csv', 'pure_efficiency_stats_22_23.csv')
+
+filtered_data_1.to_csv('pure_efficiency_stats_20_21_filtered.csv', index=False)
+filtered_data_2.to_csv('pure_efficiency_stats_21_22_filtered.csv', index=False)
+filtered_data_3.to_csv('pure_efficiency_stats_22_23_filtered.csv', index=False)
+
+data_1 = pd.read_csv('pure_efficiency_stats_20_21_filtered.csv')
+X_train = data_1.iloc[:, 1:-1].values
+
+data_2 = pd.read_csv('pure_efficiency_stats_21_22_filtered.csv')
+X_test = data_2.iloc[:, 1:-1].values
+y_train = data_2.iloc[:, 18].values
+
+df = pd.DataFrame(X_train)
+df['PER'] = y_train
+
+correlation_matrix = df.corr()
+
+# Fig 1
+# plt.figure(figsize=(10, 8))
+# sns.heatmap(correlation_matrix, annot=True, cmap='flare', linewidths=0.5)
+# plt.title('Correlation Heatmap')
+# plt.show()
+
+
+def backward_elimination(X, y, significance_level=0.05):
+    num_features = X.shape[1]
+    selected_indices = np.arange(num_features)
+
+    for i in range(num_features):
+        model = sm.OLS(y, X).fit()
+        max_p_value = max(model.pvalues)
+
+        if max_p_value > significance_level:
+            max_p_value_index = np.argmax(model.pvalues)
+            X = np.delete(X, max_p_value_index, axis=1)
+            selected_indices = np.delete(selected_indices, max_p_value_index)
+
+        else:
+            break
+    return selected_indices
+
+
+selected_variables = backward_elimination(X_train, y_train)
+
+X_train_selected = X_train[:, selected_variables]
+X_test_selected = X_test[:, selected_variables]
+
+# print(X_test_selected)
+# print()
+# print(X_test_selected)
+
+
+regressor_rf = RandomForestRegressor()
+
+regressor_rf.fit(X_train_selected, y_train)
+
+# setting an intercept for RF not std. approach
+# introduces bias and changes behavior of RF
+# regressor.estimators_[-1].tree_.value[0] = [[y_train.mean()]]
+
+y_pred_m_1 = regressor_rf.predict(X_test_selected)
+
+comp_data = pd.read_csv('pure_efficiency_stats_22_23_filtered.csv')
+comp = comp_data['PER'].values
+
+score_m_1 = r2_score(comp, y_pred_m_1) * 100
+#print('R2 Score =', score_m_1.round(5), '%')
+
+# Fig 2
+# plt.scatter(y_pred_m_1, comp)
+# plt.xlabel('Predicted PER')
+# plt.ylabel('Actual PER')
+# plt.title('Comparison of Predicted PER vs Actual PER')
+# plt.show()
+
+
+selected_variables_m_2 = backward_elimination(X_train, y_train)
+
+X_train_selected_m_2 = X_train[:, selected_variables_m_2]
+X_test_selected_m_2 = X_test[:, selected_variables_m_2]
+
+regressor_lr = LinearRegression()
+
+regressor_lr.fit(X_train_selected_m_2, y_train)
+
+y_pred_m_2 = regressor_lr.predict(X_test_selected_m_2)
+
+score_m_2 = r2_score(comp, y_pred_m_2) * 100
+#print('R2 Score =', score_m_2.round(5), '%')
+
+# Fig 3
+# plt.scatter(y_pred_m_2, comp)
+# plt.xlabel('Predicted PER')
+# plt.ylabel('Actual PER')
+# plt.title('Comparison of Predicted PER vs Actual PER')
+# plt.show()
+
+
+def backward_elimination_2(X, y, significance_level=0.1):
+    num_features = X.shape[1]
+    selected_indices = np.arange(num_features)
+
+    for i in range(num_features):
+        model = sm.OLS(y, X).fit()
+        max_p_value = max(model.pvalues)
+
+        if max_p_value > significance_level:
+            max_p_value_index = np.argmax(model.pvalues)
+            X = np.delete(X, max_p_value_index, axis=1)
+            selected_indices = np.delete(selected_indices, max_p_value_index)
+
+        else:
+            break
+    return selected_indices
+
+
+selected_variables_m_3 = backward_elimination_2(X_train, y_train)
+
+X_train_selected_m_3 = X_train[:, selected_variables_m_3]
+X_test_selected_m_3 = X_test[:, selected_variables_m_3]
+
+# print(X_test_selected_m_3)
+# print()
+# print(X_test_selected_m_3)
+
+regressor_rf = RandomForestRegressor()
+
+regressor_rf.fit(X_train_selected_m_3, y_train)
+
+y_pred_m_3 = regressor_rf.predict(X_test_selected_m_3)
+
+score_m_3 = r2_score(comp, y_pred_m_3) * 100
+#print('R2 Score =', score_m_3.round(5), '%')
+
+# Fig 4
+# plt.scatter(y_pred_m_3, comp)
+# plt.xlabel('Predicted PER')
+# plt.ylabel('Actual PER')
+# plt.title('Comparison of Predicted PER vs Actual PER')
+# plt.show()
+
+selected_variables_m_4 = backward_elimination_2(X_train, y_train)
+
+X_train_selected_m_4 = X_train[:, selected_variables_m_4]
+X_test_selected_m_4 = X_test[:, selected_variables_m_4]
+
+regressor_lr = LinearRegression()
+
+regressor_lr.fit(X_train_selected_m_4, y_train)
+
+y_pred_m_4 = regressor_lr.predict(X_test_selected_m_4)
+
+score_m_4 = r2_score(comp, y_pred_m_4) * 100
+#print('R2 Score =', score_m_4.round(5), '%')
+
+# Fig 5
+# plt.scatter(y_pred_m_4, comp)
+# plt.xlabel('Predicted PER')
+# plt.ylabel('Actual PER')
+# plt.title('Comparison of Predicted PER vs Actual PER')
+# plt.show()
+
+
+figure_labels = ['Model 1', 'Model 2', 'Model 3', 'Model 4']
+current_figure_index = 0
+
+
+def heatmap_display():
+    fig, ax = plt.subplots(figsize=(8, 6))
+    sns.heatmap(correlation_matrix, annot=True,
+                cmap='flare', linewidths=0.5, ax=ax)
+    ax.set_title('Correlation Heatmap')
+    plt.show()
+
+
+def models_display():
+    global current_figure_index
+
+    fig, ax = plt.subplots(figsize=(8, 6))
+    y_preds = [y_pred_m_1, y_pred_m_2, y_pred_m_3, y_pred_m_4]
+    label = figure_labels[current_figure_index]
+    ax.scatter(y_preds[current_figure_index], comp)
+    ax.set_xlabel('Predicted PER')
+    ax.set_ylabel('Actual PER')
+    ax.set_title(f'Comparison of Predicted PER vs Actual PER ({label})')
+
+    def on_radio_button_clicked(label):
+        global current_figure_index
+        current_figure_index = figure_labels.index(label)
+        ax.clear()
+        label = figure_labels[current_figure_index]
+        ax.scatter(y_preds[current_figure_index], comp)
+        ax.set_xlabel('Predicted PER')
+        ax.set_ylabel('Actual PER')
+        ax.set_title(f'Comparison of Predicted PER vs Actual PER ({label})')
+        plt.draw()
+
+    ax_radio_buttons = plt.axes([0.1, 0.1, 0.7, 0.1])
+    radio_buttons = RadioButtons(ax_radio_buttons, figure_labels)
+    radio_buttons.on_clicked(on_radio_button_clicked)
+
+    plt.subplots_adjust(bottom=0.2)
+    plt.show()
+
+
+def findTrue():
+    df = pd.DataFrame(
+        {'Actual PER': comp, 'Predicited PER': y_pred_m_2, 'Difference': (comp - y_pred_m_2)})
+    df.to_csv('final_result_m_2.csv', index=False)
+
+
+def createSus():
+    df_1 = pd.read_csv('pure_efficiency_stats_22_23_filtered.csv', header=0)
+    df_2 = pd.read_csv('final_result_m_2.csv', header=0)
+    df_1.iloc[:, 4:] = df_1.iloc[:, 4:] + \
+        df_1.iloc[:, 4:].multiply(df_2.iloc[:, -1], axis=0)
+    df_1.iloc[:, 4:] = df_1.iloc[:, 4:].round(2)
+    df_1.iloc[:, -1] = df_2.iloc[:, 1].round(2)
+    df_1.to_csv('m_2_predicted_player_stats_22_23.csv', index=0)

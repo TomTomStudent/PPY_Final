@@ -127,6 +127,12 @@ class GUI:
         self.create_role_menu()
         self.create_date_menu()
         self.create_confirm_button()
+        self.heatmap_button = tk.Button(
+            self.button_frame, text="Heatmap accuracy", command=projection.heatmap_display)
+        self.heatmap_button.pack(side=tk.TOP)
+        self.models_button = tk.Button(
+            self.button_frame, text="Models accuracy", command=projection.models_display)
+        self.models_button.pack(side=tk.TOP)
 
         self.root.protocol("WM_DELETE_WINDOW", self.on_closing)
 
@@ -135,7 +141,10 @@ class GUI:
 
         try:
             if image_url:
-                response = requests.get(image_url)
+                headers = {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/58.0.3029.110 Safari/537.3'
+                }
+                response = requests.get(image_url, headers=headers)
                 response.raise_for_status()
                 image_data = response.content
                 image = Image.open(io.BytesIO(image_data))
@@ -144,38 +153,11 @@ class GUI:
 
                 self.image_label.configure(image=photo)
                 self.image_label.image = photo
-                self.name_label.configure(text=player_name)
             else:
                 self.image_label.configure(image="")
-                self.name_label.configure(
-                    text=f"No image found for {player_name}")
         except (requests.RequestException, UnidentifiedImageError) as e:
             self.image_label.configure(image="")
-            self.name_label.configure(
-                text=f"Error loading image for {player_name}")
             print(f"An error occurred while loading the image: {e}")
-
-    # def image(self):
-    #     url = "https://picsum.photos/200"
-
-    #     # try:
-    #     # Download the image from the URL
-    #     response = requests.get(url)
-    #     response.raise_for_status()
-
-    #     # Open the image using PIL
-    #     image = Image.open(io.BytesIO(response.content))
-    #     image = image.resize((200, 200), Image.ANTIALIAS)
-
-    #     # Convert the image to PhotoImage format for Tkinter
-    #     self.photo = ImageTk.PhotoImage(image)
-
-    #     # Create a label to display the image
-    #     self.image_label = tk.Label(self.button_frame, image=self.photo)
-    #     self.image_label.pack(side=tk.TOP)
-
-    #     # except Exception as e:
-    #     #     print(f"Error: {e}")
 
     def name_label(self):
         self.name_var = tk.StringVar()
@@ -220,8 +202,6 @@ class GUI:
 
         canvas = FigureCanvasTkAgg(fig, master=self.fig_frame)
         canvas.draw()
-        canvas.mpl_connect("pick_event", lambda event: self.on_plot_pick(
-            event, canvas))
         canvas.get_tk_widget().pack()
 
         return canvas
@@ -292,22 +272,6 @@ class GUI:
             self.button_frame, text="Confirm", command=self.update_plot)
         confirm_button.pack(side=tk.TOP)
 
-    # def create_create_button(self):
-    #     def create_player_popup():
-    #         popup = tk.Toplevel()
-    #         popup.title("Create New Player")
-    #         popup.geometry("300x200")
-
-    #         label = tk.Label(
-    #             popup, text="Input the values for the new player:")
-    #         label.pack()
-
-    #         # Add input fields for player attributes
-
-    #     create_button = tk.Button(
-    #         self.button_frame, text="Create", command=create_player_popup)
-    #     create_button.pack(side=tk.TOP)
-
 
 def create_scatter_plot(x, y, data, selected_header):
     fig, ax = plt.subplots()
@@ -328,29 +292,18 @@ def create_scatter_plot(x, y, data, selected_header):
         name = player.player
         age = player.age
         g = player.g
-        # gs = player.gs
-        # mp = player.mp
         fg = player.fg
         fga = player.fga
-        # fg_pct = player.fg_pct
         three_p = player.three_p
         three_pa = player.three_pa
         three_pct = player.three_pct
-        # two_p = player.two_p
-        # two_pa = player.two_pa
-        # two_pct = player.two_pct
-        # efg_pct = player.efg_pct
         ft = player.ft
         fta = player.fta
-        #ft_pct = player.ft_pct
-        # orb = player.orb
-        # drb = player.drb
         trb = player.trb
         ast = player.ast
         stl = player.stl
         blk = player.blk
         tov = player.tov
-        # pf = player.pf
         pts = player.pts
 
         sel.annotation.set_text(f"{name}, {age}")
@@ -376,17 +329,6 @@ def create_scatter_plot(x, y, data, selected_header):
             zthree_pct = row["PER"]
         gui.label_var2.set(f"PTS: {zpts}, G: {zg}, FG: {zfg}, FGA: {zfga}, 3P: {zthree_p}, 3PA: {zthree_pa}, 3P%: {zthree_pct}\n"
                            f"FT: {zft}, FTA: {zfta}, TRB: {ztrb}, AST: {zast}, STL: {zstl}, BLK: {zblk}, TOV: {ztov}")
-        # gs = player.gs
-        # mp = player.mp
-        # fg_pct = player.fg_pct
-        # two_p = player.two_p
-        # two_pa = player.two_pa
-        # two_pct = player.two_pct
-        # efg_pct = player.efg_pct
-        #zft_pct = sus_player[1]
-        # orb = player.orb
-        # drb = player.drb
-        # pf = player.pf
 
         dg = g - zg
         dpts = pts - zpts
@@ -407,22 +349,12 @@ def create_scatter_plot(x, y, data, selected_header):
 
         gui.display_player_image(name)
 
-        gui.url.set(display_basketball_player_image(name))
-
         allinfo = get_player_info(name)
         for row in allinfo:
             # print(x)
             pts = row["PTS"]
             g = row["G"]
             #print(f"Points: {pts}, Games: {g}")
-
-    def on_click(event):
-        if event.button == 1:
-            index = event.index
-            name = data[index].player
-            gui.label_var.set(f"Selected player: {name}")
-
-    fig.canvas.mpl_connect("button_press_event", on_click)
 
     return fig
 
@@ -443,7 +375,7 @@ def get_player_info(player_name):
 
 def get_sus_player(player_name):
     player_info = []
-    data = pd.read_csv('updated_per_stats_22_23.csv')
+    data = pd.read_csv('m_2_predicted_player_stats_22_23.csv')
     matching_rows = data[data['Player'] == player_name]
     for _, row in matching_rows.iterrows():
         player_info.append(row)
@@ -485,6 +417,8 @@ def display_basketball_player_image(player_name):
 
 
 if __name__ == "__main__":
+    projection.findTrue()
+    projection.createSus()
     root = tk.Tk()
     data_manager = DataManager("NBA player 2022-2023.csv")
     data_manager.load_data()
